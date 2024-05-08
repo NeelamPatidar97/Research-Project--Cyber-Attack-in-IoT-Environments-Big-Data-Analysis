@@ -1,0 +1,260 @@
+## Uploaded zip CSV files to server-
+$ scp C:/Users/npatida/CICIoT2023.zip npatida@129.153.214.22:~
+
+##Logged in to server with SSH and password
+
+$ ssh npatida@129.153.214.22
+$ ls
+
+## created directory and unzipped csv files and uploaded files to directory-
+
+$ mkdir CICIoT2023
+$ unzip CICIoT2023.zip -d CICIoT2023
+$ hdfs dfs -mkdir /user/npatida/CICIoT2023
+$ hdfs dfs -put CICIoT2023/* /user/npatida/CICIoT2023/
+$ hdfs dfs -ls /user/npatida/CICIoT2023
+
+
+## Created Table with all datafields columns available in CSV files
+
+DROP TABLE IF EXISTS IoT_Data;
+CREATE EXTERNAL TABLE IF NOT EXISTS IoT_Data (
+    flow_duration DOUBLE, Header_Length DOUBLE, Protocol_Type INT, Duration DOUBLE,
+    Rate DOUBLE, Srate DOUBLE, Drate DOUBLE,
+    fin_flag_number INT, syn_flag_number INT, rst_flag_number INT, psh_flag_number INT,
+    ack_flag_number INT, ece_flag_number INT, cwr_flag_number INT,
+    ack_count INT, syn_count INT, fin_count INT, urg_count INT, rst_count INT,
+    HTTP INT, HTTPS INT, DNS INT, Telnet INT, SMTP INT, SSH INT, IRC INT, TCP INT,
+    UDP INT, DHCP INT, ARP INT, ICMP INT, IPv INT, LLC INT, Tot_sum DOUBLE, 
+    Min DOUBLE, Max DOUBLE, AVG DOUBLE, Std DOUBLE, Tot_size DOUBLE,
+    IAT DOUBLE, Number DOUBLE, Magnitue DOUBLE, Radius DOUBLE, Covariance DOUBLE,
+    Variance DOUBLE, Weight DOUBLE, label STRING
+)
+ROW FORMAT DELIMITED 
+FIELDS TERMINATED BY ','
+STORED AS TEXTFILE 
+LOCATION '/user/npatida/CICIoT2023'
+TBLPROPERTIES ("skip.header.line.count"="1");
+
+## 1.  Query to get number of incidents for each type of attack and it’s frequency count in DESC order
+SELECT label AS attack_type, COUNT(*) as frequency
+FROM iot_data
+GROUP BY label
+ORDER BY frequency DESC;
+
+## 2. The below query will list out all 33 attacks categorized in 7 types and count of attack-
+SELECT attack_category, label AS attack_type,
+COUNT(*) AS attack_count
+FROM (
+  SELECT
+    CASE
+      WHEN label IN ('DDoS-SynonymousIP_Flood', 'DDoS-HTTP_Flood', 'DDoS-SlowLoris', 'DDoS-ICMP_Fragmentation',
+                     'DDoS-UDP_Fragmentation', 'DDoS-ACK_Fragmentation', 'DDoS-TCP_Flood', 'DDoS-SYN_Flood',
+                     'DDoS-RSTFINFlood', 'DDoS-PSHACK_Flood', 'DDoS-UDP_Flood', 'DDoS-ICMP_Flood') THEN 'DDoS'
+      WHEN label IN ('DoS-UDP_Flood', 'DoS-TCP_Flood', 'DoS-HTTP_Flood', 'DoS-SYN_Flood') THEN 'DoS'
+      WHEN label IN ('Recon-PingSweep', 'Recon-HostDiscovery', 'Recon-PortScan', 'Recon-OSScan', 'VulnerabilityScan') THEN 'Recon'
+      WHEN label IN ('SqlInjection', 'CommandInjection', 'Backdoor_Malware', 'Uploading_Attack',
+                     'XSS', 'BrowserHijacking') THEN 'Web-Based'
+      WHEN label IN ('DictionaryBruteForce') THEN 'Brute Force'
+      WHEN label IN ('MITM-ArpSpoofing', 'DNS_Spoofing') THEN 'Spoofing'
+      WHEN label IN ('Mirai-greeth_flood', 'Mirai-greip_flood', 'Mirai-udpplain') THEN 'Mirai'
+      ELSE 'Unknown'
+    END AS attack_category,
+    label
+  FROM iot_data
+  WHERE label IN ('DDoS-SynonymousIP_Flood', 'SqlInjection', 'DoS-UDP_Flood', 'Uploading_Attack', 'DDoS-HTTP_Flood',
+                  'VulnerabilityScan', 'Backdoor_Malware', 'DDoS-SlowLoris', 'DoS-TCP_Flood', 'DDoS-ICMP_Fragmentation',
+                  'DDoS-UDP_Fragmentation', 'Recon-PingSweep', 'CommandInjection', 'DDoS-ACK_Fragmentation',
+                  'DictionaryBruteForce', 'Mirai-greeth_flood', 'Recon-HostDiscovery', 'DDoS-TCP_Flood',
+                  'DNS_Spoofing', 'MITM-ArpSpoofing', 'Mirai-udpplain', 'BenignTraffic', 'DDoS-SYN_Flood',
+                  'BrowserHijacking', 'DDoS-ICMP_Flood', 'Recon-PortScan', 'DoS-HTTP_Flood', 'DoS-SYN_Flood',
+                  'Recon-OSScan', 'DDoS-RSTFINFlood', 'XSS', 'DDoS-UDP_Flood', 'Mirai-greip_flood',
+                  'DDoS-PSHACK_Flood')
+) mapped
+GROUP BY attack_category, label
+ORDER BY attack_category, label;
+
+## 3. This query will provide analysis on average , minimum and maximum duration for each type of attacks
+SELECT label AS attack_type, 
+ROUND(AVG(flow_duration), 3) AS avg_duration,
+ROUND(MAX(flow_duration), 3) AS max_duration, 
+ROUND(MIN(flow_duration), 3) AS min_duration
+FROM iot_data
+GROUP BY label
+ORDER BY max_duration DESC;
+
+## 4. The query will provide average, Minimum & Maximum (rate , sending rate and reciving rates) for all 7 category of attacks-
+SELECT attack_category,
+ROUND(AVG(Rate), 3) AS avg_rate,
+ROUND(AVG(Srate), 3) AS avg_srate,
+ROUND(AVG(Drate), 3) AS avg_drate,
+ROUND(MIN(Rate), 3) AS min_rate,
+ROUND(MAX(Rate), 3) AS max_rate,
+ROUND(MIN(Srate), 3) AS min_srate,
+ROUND(MAX(Srate), 3) AS max_srate,
+ROUND(MIN(Drate), 3) AS min_drate,
+ROUND(MAX(Drate), 3) AS max_drate
+FROM (
+SELECT
+CASE
+WHEN label IN ('DDoS-SynonymousIP_Flood', 'DDoS-HTTP_Flood', 'DDoS-SlowLoris', 'DDoS-ICMP_Fragmentation','DDoS-UDP_Fragmentation', 'DDoS-ACK_Fragmentation', 'DDoS-TCP_Flood', 'DDoS-SYN_Flood','DDoS-RSTFINFlood', 'DDoS-PSHACK_Flood', 'DDoS-UDP_Flood', 'DDoS-ICMP_Flood') THEN 'DDoS'
+WHEN label IN ('DoS-UDP_Flood', 'DoS-TCP_Flood', 'DoS-HTTP_Flood', 'DoS-SYN_Flood') THEN 'DoS'
+WHEN label IN ('Recon-PingSweep', 'Recon-HostDiscovery', 'Recon-PortScan', 'Recon-OSScan', 'VulnerabilityScan') THEN 'Recon'
+WHEN label IN ('SqlInjection', 'CommandInjection', 'Backdoor_Malware', 'Uploading_Attack', 'XSS', 'BrowserHijacking') THEN 'Web-Based'
+WHEN label IN ('DictionaryBruteForce') THEN 'Brute Force'
+WHEN label IN ('MITM-ArpSpoofing', 'DNS_Spoofing') THEN 'Spoofing'
+WHEN label IN ('Mirai-greeth_flood', 'Mirai-greip_flood', 'Mirai-udpplain') THEN 'Mirai'
+ELSE 'Unknown'
+END AS attack_category, Rate, Srate, Drate
+FROM iot_data
+WHERE label IN ('DDoS-SynonymousIP_Flood', 'SqlInjection', 'DoS-UDP_Flood', 'Uploading_Attack', 'DDoS-HTTP_Flood', 'VulnerabilityScan', 'Backdoor_Malware', 'DDoS-SlowLoris', 'DoS-TCP_Flood', 'DDoS-ICMP_Fragmentation', 'DDoS-UDP_Fragmentation', 'Recon-PingSweep', 'CommandInjection', 'DDoS-ACK_Fragmentation','DictionaryBruteForce', 'Mirai-greeth_flood', 'Recon-HostDiscovery', 'DDoS-TCP_Flood', 'DNS_Spoofing', 'MITM-ArpSpoofing', 'Mirai-udpplain', 'BenignTraffic', 'DDoS-SYN_Flood','BrowserHijacking', 'DDoS-ICMP_Flood', 'Recon-PortScan', 'DoS-HTTP_Flood', 'DoS-SYN_Flood','Recon-OSScan', 'DDoS-RSTFINFlood', 'XSS', 'DDoS-UDP_Flood', 'Mirai-greip_flood','DDoS-PSHACK_Flood')
+) mapped
+GROUP BY attack_category
+ORDER BY attack_category;
+
+## 5.  The below query will list out all protocols with total count. We have done mapping for the same- 
+WITH protocol_mapping AS (
+  SELECT 
+    CASE 
+      WHEN HTTP = 1 THEN 'HTTP'
+      WHEN HTTPS = 1 THEN 'HTTPS'
+      WHEN DNS = 1 THEN 'DNS'
+      WHEN Telnet = 1 THEN 'Telnet'
+      WHEN SMTP = 1 THEN 'SMTP'
+      WHEN SSH = 1 THEN 'SSH'
+      WHEN IRC = 1 THEN 'IRC'
+      WHEN TCP = 1 THEN 'TCP'
+      WHEN UDP = 1 THEN 'UDP'
+      WHEN DHCP = 1 THEN 'DHCP'
+      WHEN ARP = 1 THEN 'ARP'
+      WHEN ICMP = 1 THEN 'ICMP'
+      WHEN IPv = 1 THEN 'IPv'
+      WHEN LLC = 1 THEN 'LLC'
+      ELSE 'Unknown'
+    END AS protocol_name,
+    *
+  FROM iot_data
+)
+SELECT 
+  protocol_name, 
+  COUNT(*) AS count 
+FROM protocol_mapping 
+GROUP BY protocol_name 
+ORDER BY count DESC;
+
+## 6. The below query shows the most targetted attack attack and the protocol it uses , flow duration,packet size, header length etc--
+WITH protocol_mapping AS (
+    SELECT 
+        label AS attack_type,
+        CASE
+            WHEN HTTP = 1 THEN 'HTTP'
+            WHEN HTTPS = 1 THEN 'HTTPS'
+            WHEN DNS = 1 THEN 'DNS'
+            WHEN Telnet = 1 THEN 'Telnet'
+            WHEN SMTP = 1 THEN 'SMTP'
+            WHEN SSH = 1 THEN 'SSH'
+            WHEN IRC = 1 THEN 'IRC'
+            WHEN TCP = 1 THEN 'TCP'
+            WHEN UDP = 1 THEN 'UDP'
+            WHEN DHCP = 1 THEN 'DHCP'
+            WHEN ARP = 1 THEN 'ARP'
+            WHEN ICMP = 1 THEN 'ICMP'
+            WHEN IPv = 1 THEN 'IPv'
+            WHEN LLC = 1 THEN 'LLC'
+            ELSE 'Unknown'
+        END AS protocol_name,
+        flow_duration,
+        tot_size,
+        Header_Length
+    FROM iot_data
+)
+
+SELECT 
+    attack_type, 
+    protocol_name, 
+    COUNT(*) AS target_count,
+    ROUND(SUM(flow_duration), 3) AS total_flow_duration,
+    CAST(SUM(tot_size) AS DECIMAL(15,1)) AS total_packet_size,
+    CAST(SUM(Header_Length) AS DECIMAL(15,1)) AS total_header_length
+FROM protocol_mapping
+GROUP BY attack_type, protocol_name
+ORDER BY target_count DESC;
+
+## 7. The query is designed to analyze network traffic data, specifically focusing on various types of flags associated with different attack types in an IoT dataset-
+WITH flag_usage AS (
+    SELECT 
+        label AS attack_type,
+        fin_flag_number,
+        syn_flag_number,
+        rst_flag_number,
+        psh_flag_number,
+        ack_flag_number,
+        ece_flag_number,
+        cwr_flag_number,
+        (CASE WHEN fin_flag_number = 1 THEN 'True' ELSE 'False' END) AS fin_used,
+        (CASE WHEN syn_flag_number = 1 THEN 'True' ELSE 'False' END) AS syn_used,
+        (CASE WHEN rst_flag_number = 1 THEN 'True' ELSE 'False' END) AS rst_used,
+        (CASE WHEN psh_flag_number = 1 THEN 'True' ELSE 'False' END) AS psh_used,
+        (CASE WHEN ack_flag_number = 1 THEN 'True' ELSE 'False' END) AS ack_used,
+        (CASE WHEN ece_flag_number = 1 THEN 'True' ELSE 'False' END) AS ece_used,
+        (CASE WHEN cwr_flag_number = 1 THEN 'True' ELSE 'False' END) AS cwr_used
+    FROM iot_data
+)
+SELECT 
+    attack_type,
+    SUM(CASE WHEN fin_flag_number = 1 THEN 1 ELSE 0 END) AS fin_count,
+    SUM(CASE WHEN syn_flag_number = 1 THEN 1 ELSE 0 END) AS syn_count,
+    SUM(CASE WHEN rst_flag_number = 1 THEN 1 ELSE 0 END) AS rst_count,
+    SUM(CASE WHEN psh_flag_number = 1 THEN 1 ELSE 0 END) AS psh_count,
+    SUM(CASE WHEN ack_flag_number = 1 THEN 1 ELSE 0 END) AS ack_count,
+    SUM(CASE WHEN ece_flag_number = 1 THEN 1 ELSE 0 END) AS ece_count,
+    SUM(CASE WHEN cwr_flag_number = 1 THEN 1 ELSE 0 END) AS cwr_count,
+    MAX(fin_used) AS fin_usage,
+    MAX(syn_used) AS syn_usage,
+    MAX(rst_used) AS rst_usage,
+    MAX(psh_used) AS psh_usage,
+    MAX(ack_used) AS ack_usage,
+    MAX(ece_used) AS ece_usage,
+    MAX(cwr_used) AS cwr_usage
+FROM flag_usage
+GROUP BY attack_type
+ORDER BY attack_type;
+
+## 8.	The analysis primarily focuses on TCP and UDP protocols due to their high usage and relevance in network attacks, which are often exploited in various cyberattack strategies. We leveraged specific TCP and UDP packet counts, combined with flag analysis (SYN, FIN, ACK) and packet inter-arrival times (IAT), to understand the behaviors and signatures of different types of attacks. This detailed examination helps in identifying abnormal traffic patterns and establishing baselines for normal traffic, enabling effective monitoring and enhanced security measures against potential threats in network environments.
+SELECT
+  attack_category,
+  COUNT(*) AS total_packets,
+  CAST(ROUND(SUM(Number), 2) AS DECIMAL(20,2)) AS total_number_of_packets,
+  CAST(STDDEV_SAMP(IAT) AS DECIMAL(10,2)) AS std_dev_interarrival_time,
+  SUM(CASE WHEN protocol_type = 6 THEN 1 ELSE 0 END) AS total_tcp_packets,
+  SUM(CASE WHEN protocol_type = 17 THEN 1 ELSE 0 END) AS total_udp_packets,
+  SUM(CASE WHEN syn_flag_number > 0 THEN 1 ELSE 0 END) AS syn_packets,
+  SUM(CASE WHEN fin_flag_number > 0 THEN 1 ELSE 0 END) AS fin_packets,
+  SUM(CASE WHEN ack_flag_number > 0 THEN 1 ELSE 0 END) AS ack_packets
+FROM (
+  SELECT *,
+    CASE
+      WHEN label IN ('DDoS-SynonymousIP_Flood', 'DDoS-HTTP_Flood', 'DDoS-SlowLoris', 'DDoS-ICMP_Fragmentation',
+                     'DDoS-UDP_Fragmentation', 'DDoS-ACK_Fragmentation', 'DDoS-TCP_Flood', 'DDoS-SYN_Flood',
+                     'DDoS-RSTFINFlood', 'DDoS-PSHACK_Flood', 'DDoS-UDP_Flood', 'DDoS-ICMP_Flood') THEN 'DDoS'
+      WHEN label IN ('DoS-UDP_Flood', 'DoS-TCP_Flood', 'DoS-HTTP_Flood', 'DoS-SYN_Flood') THEN 'DoS'
+      WHEN label IN ('Recon-PingSweep', 'Recon-HostDiscovery', 'Recon-PortScan', 'Recon-OSScan', 'VulnerabilityScan') THEN 'Recon'
+      WHEN label IN ('SqlInjection', 'CommandInjection', 'Backdoor_Malware', 'Uploading_Attack',
+                     'XSS', 'BrowserHijacking') THEN 'Web-Based'
+      WHEN label IN ('DictionaryBruteForce') THEN 'Brute Force'
+      WHEN label IN ('MITM-ArpSpoofing', 'DNS_Spoofing') THEN 'Spoofing'
+      WHEN label IN ('Mirai-greeth_flood', 'Mirai-greip_flood', 'Mirai-udpplain') THEN 'Mirai'
+      ELSE 'Unknown'
+    END AS attack_category
+  FROM iot_data
+) mapped
+GROUP BY attack_category
+ORDER BY total_number_of_packets DESC, std_dev_interarrival_time DESC;
+
+
+
+
+
+
+
+
