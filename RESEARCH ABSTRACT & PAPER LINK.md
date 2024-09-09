@@ -1,0 +1,3 @@
+In the landscape of the Internet of Things (IoT), transforming various industries, our research addresses the growing connectivity and security challenges, including interoperability and standardized protocols. Despite the anticipated exponential growth in IoT connections, network security remains a major concern due to inadequate datasets that fail to fully encompass potential cyberattacks in realistic IoT environments. Using Apache Hadoop and Hive, our in-depth analysis of security vulnerabilities identified intricate patterns and threats, such as attack behavior, network traffic anomalies, TCP flag usage, and targeted attacks, underscoring the critical need for robust data platforms to enhance IoT security.
+
+https://arxiv.org/abs/2406.10302
