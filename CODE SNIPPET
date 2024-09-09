@@ -1,10 +1,3 @@
-## Uploaded zip CSV files to server-
-$ scp C:/Users/npatida/CICIoT2023.zip npatida@129.153.214.22:~
-
-##Logged in to server with SSH and password
-
-$ ssh npatida@129.153.214.22
-$ ls
 
 ## created directory and unzipped csv files and uploaded files to directory-
 
