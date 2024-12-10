@@ -4,8 +4,8 @@
 $ mkdir CICIoT2023
 $ unzip CICIoT2023.zip -d CICIoT2023
 $ hdfs dfs -mkdir /user/npatida/CICIoT2023
-$ hdfs dfs -put CICIoT2023/* /user/npatida/CICIoT2023/
-$ hdfs dfs -ls /user/npatida/CICIoT2023
+$ hdfs dfs -put CICIoT2023/* /your-path/CICIoT2023/
+$ hdfs dfs -ls /your-path/CICIoT2023
 
 
 ## Created Table with all datafields columns available in CSV files
